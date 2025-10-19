@@ -11,8 +11,8 @@ v2bx_config="/etc/V2bX/config.json"
 
 # 默认配置
 DEFAULT_LOG_LEVEL="info"
-DEFAULT_OUTBOUND_CONFIG_PATH="/etc/V2bX/custom_outbound.json" # 默认值 /etc/V2bX/custom_outbound.json
-DEFAULT_ROUTE_CONFIG_PATH="/etc/V2bX/route.json" # 默认值 /etc/V2bX/route.json
+DEFAULT_OUTBOUND_CONFIG_PATH="/etc/V2bX/custom_outbound.json" # 默认值
+DEFAULT_ROUTE_CONFIG_PATH="/etc/V2bX/route.json" # 默认值
 DEFAULT_ORIGINAL_PATH="" # 默认值 /etc/V2bX/sing_origin.json 文件不存在，留空
 DEFAULT_API_HOST="https://api.example.com"
 DEFAULT_API_KEY="your_api_key"
@@ -30,7 +30,6 @@ load_config() {
     if [ -f "$v2bx_config" ]; then
         local json_content=$(<"$v2bx_config")
         echo -e "${GREEN}正在加载配置文件，请耐心等待...${NC}"
-        # 使用jq一次性提取所有配置项
         local parsed_config=$(jq -r '{
             LogLevel: .Log.Level,
             OutboundConfigPath: .Cores[0].OutboundConfigPath,
@@ -46,7 +45,6 @@ load_config() {
             CF_API_EMAIL: .Nodes[0].CertConfig.DNSEnv.CF_API_EMAIL,
             CF_API_KEY: .Nodes[0].CertConfig.DNSEnv.CF_API_KEY
         } | to_entries[] | "\(.key)=\(.value)"' <<<"$json_content" 2>/dev/null)
-        # 解析成功时处理结果，失败时使用默认值
         if [ $? -eq 0 ]; then
             declare -A default_config=(
                 [LogLevel]="$DEFAULT_LOG_LEVEL"
@@ -63,9 +61,7 @@ load_config() {
                 [CF_API_EMAIL]="$DEFAULT_CF_API_EMAIL"
                 [CF_API_KEY]="$DEFAULT_CF_API_KEY"
             )
-            # 遍历解析结果并赋值给config数组
             while IFS='=' read -r key value; do
-                # 当解析值为空或null时使用默认值
                 if [ -z "$value" ] || [ "$value" == "null" ]; then
                     config["$key"]="${default_config[$key]}"
                 else
@@ -92,7 +88,6 @@ load_config() {
         fi
     else
         echo -e "${RED}配置文件不存在，使用默认配置${NC}"
-        # 首先设置所有默认值
         config=(
             [LogLevel]="$DEFAULT_LOG_LEVEL"
             [OutboundConfigPath]="$DEFAULT_OUTBOUND_CONFIG_PATH"
@@ -108,14 +103,7 @@ load_config() {
             [CF_API_EMAIL]="$DEFAULT_CF_API_EMAIL"
             [CF_API_KEY]="$DEFAULT_CF_API_KEY"
         )
-        # 然后检查并应用传入的参数值
-        for key in "${!config[@]}"; do
-            if [ -n "${config[$key]}" ]; then
-                config["$key"]="${config[$key]}"
-            fi
-        done
     fi
-    # 将配置变量导出到全局环境
     for key in "${!config[@]}"; do
         export "$key"="${config[$key]}"
     done
@@ -123,7 +111,7 @@ load_config() {
 
 # 配置显示函数
 display_config() {
-    load_config  # 加载配置
+    load_config
     echo -e "${GREEN}配置信息如下：${NC}"
     echo -e "LogLevel:       ${config[LogLevel]}"
     echo -e "OutboundConfigPath: ${config[OutboundConfigPath]}"
